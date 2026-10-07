@@ -1,5 +1,6 @@
 console.log("Supabase je pripojené:", supabaseClient);
 let kosik = [];
+let mojeObjednavkaId = null;
 const urlParametre = new URLSearchParams(window.location.search);
 const cisloStola = urlParametre.get("stol") || 7;
 
@@ -105,6 +106,8 @@ async function odosliObjednavku() {
 
     // 2. Zoberieme ID vytvorenej objednávky
     let orderId = objednavka.id;
+    mojeObjednavkaId = orderId;
+zobrazStavObjednavky(objednavka.status);
 
     console.log("Vytvorená objednávka:", orderId);
 
@@ -156,3 +159,59 @@ async function zavolajObsluhu() {
 
     alert("🔔 Obsluha bola zavolaná!");
 }
+function zobrazStavObjednavky(status) {
+
+    let element = document.getElementById("stavObjednavky");
+
+    if (status === "new") {
+        element.innerHTML = `
+            <h2>📋 Objednávka #${mojeObjednavkaId}</h2>
+            <p>🟡 Objednávka bola odoslaná.</p>
+        `;
+    }
+
+    if (status === "accepted") {
+        element.innerHTML = `
+            <h2>📋 Objednávka #${mojeObjednavkaId}</h2>
+            <p>🟢 Obsluha prijala tvoju objednávku.</p>
+        `;
+    }
+
+    if (status === "preparing") {
+        element.innerHTML = `
+            <h2>📋 Objednávka #${mojeObjednavkaId}</h2>
+            <p>👨‍🍳 Objednávka sa pripravuje.</p>
+        `;
+    }
+
+    if (status === "ready") {
+        element.innerHTML = `
+            <h2>📋 Objednávka #${mojeObjednavkaId}</h2>
+            <p>🍽️ Objednávka je hotová!</p>
+        `;
+    }
+}
+async function kontrolujStavObjednavky() {
+
+    if (mojeObjednavkaId === null) {
+        return;
+    }
+
+    const { data, error } = await supabaseClient
+        .from("orders")
+        .select("status")
+        .eq("id", mojeObjednavkaId)
+        .single();
+
+    if (error) {
+        console.error("Chyba pri kontrole stavu:", error);
+        return;
+    }
+
+    zobrazStavObjednavky(data.status);
+}
+
+setInterval(
+    kontrolujStavObjednavky,
+    2000
+);
