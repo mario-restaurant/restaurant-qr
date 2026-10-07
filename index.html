@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Moja reštaurácia</title>
+</head>
+
+<body>
+
+    <h1>🍕 Moja reštaurácia</h1>
+    <button onclick="zavolajObsluhu()">🔔 Zavolať obsluhu</button>
+
+    <h2>Menu</h2>
+    <div id="kosik">
+    <h2>🛒 Tvoja objednávka</h2>
+    <p>Košík je zatiaľ prázdny.</p>
+</div>
+
+    <div>
+        <h3>Pizza Margherita</h3>
+        <p>Paradajkový základ, mozzarella, bazalka</p>
+        <strong>8,90 €</strong>
+        <button onclick="pridajDoKosika('Pizza Margherita', 8.90)">Pridať</button>
+    </div>
+
+    <div>
+        <h3>Cheeseburger</h3>
+        <p>Hovädzie mäso, syr, zelenina</p>
+        <strong>9,90 €</strong>
+        <button onclick="pridajDoKosika('Cheeseburger', 9.90)">Pridať</button>
+    </div>
+
+    <div>
+        <h3>Cola</h3>
+        <p>0,33 l</p>
+        <strong>2,50 €</strong>
+       <button onclick="pridajDoKosika('Cola', 2.50)">Pridať</button>
+    </div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<script>
+    const supabaseClient = window.supabase.createClient(
+        "https://xjfffwpdmkceugothmsp.supabase.co",
+        "sb_publishable_1_JF3_E2uXDFCOWIMw_9Xg_FIZodQvs"
+    );
+</script>
+
+    <script src="script.js"></script>
+</body>
+</html>

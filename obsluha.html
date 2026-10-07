@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="sk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Objednávky</title>
+</head>
+<body>
+<h1>🍽️ Objednávky</h1>
+<button onclick="zapniZvuk()">
+    🔊 Zapnúť upozornenia
+</button>
+<div id="volania"></div>
+<div id="objednavky">
+    Načítavam objednávky...
+</div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+    const supabaseClient = window.supabase.createClient(
+        "https://xjfffwpdmkceugothmsp.supabase.co",
+        "sb_publishable_1_JF3_E2uXDFCOWIMw_9Xg_FIZodQvs"
+    );
+    let posledneVolanie = null;
+    let poslednaObjednavka = null;
+    let audioContext = null;
+    // 🔊 ZAPNUTIE ZVUKU
+    function zapniZvuk() {
+        audioContext =
+            new (window.AudioContext || window.webkitAudioContext)();
+        audioContext.resume();
+        prehratZvuk(800, 0.5);
+        alert("🔊 Zvukové upozornenia sú zapnuté!");
+    }
+    // 🔊 PREHRANIE ZVUKU
+    function prehratZvuk(frekvencia, dlzka) {
+        if (!audioContext) {
+            return;
+        }
+        const oscillator =
+            audioContext.createOscillator();
+        const gainNode =
+            audioContext.createGain();
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        oscillator.frequency.value = frekvencia;
+        gainNode.gain.value = 0.2;
+        oscillator.start();
+        oscillator.stop(
+            audioContext.currentTime + dlzka
+        );
+    }
+    // 🔔 VOLANIE OBSLUHY
+    async function nacitajVolania() {
+        const { data, error } =
+            await supabaseClient
+                .from("waiter_calls")
+                .select("*")
+                .eq("status", "new")
+                .order("created_at", {
+                    ascending: false
+                });
+        if (error) {
+            console.error(
+                "Chyba pri načítaní volaní:",
+                error
+            );
+            return;
+        }
+        const volaniaElement =
+            document.getElementById("volania");
+        // Ak nie je žiadne volanie
+        if (data.length === 0) {
+            volaniaElement.innerHTML = "";
+            posledneVolanie = null;
+            return;
+        }
+        // Najnovšie volanie
+        const najnovsieVolanie =
+            data[0];
+        // Zistíme, či je to nové volanie
+        if (
+            posledneVolanie !== null &&
+            najnovsieVolanie.created_at !== posledneVolanie
+        ) {
+            prehratZvuk(600, 0.7);
+        }
+        // Zapamätáme si posledné volanie
+        posledneVolanie =
+            najnovsieVolanie.created_at;
+        // Zobrazenie volania
+        let html =
+            "<h2>🔔 Volanie obsluhy</h2>";
+        data.forEach(function(volanie) {
+            html += `
+                <div>
+                    <h3>
+                        🚨 Stôl ${volanie.table_number}
+                        volá obsluhu!
+                    </h3>
+                    <button
+                        onclick="vybavVolanie(${volanie.id})">
+                        ✅ Vybavené
+                    </button>
+                    <hr>
+                </div>
+            `;
+        });
+        volaniaElement.innerHTML = html;
+    }
+    // 🍕 OBJEDNÁVKY
+    async function nacitajObjednavky() {
+        const { data, error } =
+            await supabaseClient
+                .from("orders")
+                .select("*")
+                .order("created_at", {
+                    ascending: false
+                });
+        if (error) {
+            document.getElementById("objednavky").innerHTML =
+                "❌ Chyba pri načítaní objednávok.";
+            console.error(error);
+            return;
+        }
+        // Prvá objednávka pri otvorení stránky
+        if (poslednaObjednavka === null && data.length > 0) {
+            poslednaObjednavka =
+                data[0].created_at;
+        }
+        // Nová objednávka
+        else if (
+            data.length > 0 &&
+            data[0].created_at !== poslednaObjednavka
+        ) {
+            prehratZvuk(800, 0.3);
+            poslednaObjednavka =
+                data[0].created_at;
+        }
+        const { data: polozky, error: chybaPoloziek } =
+            await supabaseClient
+                .from("order_items")
+                .select("*");
+        if (chybaPoloziek) {
+            console.error(chybaPoloziek);
+            return;
+        }
+        let html = "";
+        data.forEach(function(objednavka) {
+            html += `
+                <div>
+                    <h2>
+                        🧾 Objednávka #${objednavka.id}
+                    </h2>
+                    <p>
+                        🪑 Stôl:
+                        ${objednavka.table_number}
+                    </p>
+                    <h3>
+                        🍽️ Položky:
+                    </h3>
+            `;
+            polozky.forEach(function(polozka) {
+                if (
+                    Number(polozka.order_id) ===
+                    Number(objednavka.id)
+                ) {
+                    html += `
+                        <p>
+                            <strong>
+                                ${polozka.product_name}
+                            </strong>
+                            × ${polozka.quantity}
+                            —
+                            ${(
+                                Number(polozka.price) *
+                                Number(polozka.quantity)
+                            ).toFixed(2)}
+                            €
+                        </p>
+                    `;
+                }
+            });
+            html += `
+                    <p>
+                        💰 Celkom:
+                        <strong>
+                            ${Number(
+                                objednavka.total_price
+                            ).toFixed(2)}
+                            €
+                        </strong>
+                    </p>
+                    <p>
+                        📌 Stav:
+                        ${objednavka.status}
+                    </p>
+                    ${
+                        objednavka.status === "new"
+                        ? `
+                            <button
+                                onclick="zmenStav(
+                                    ${objednavka.id},
+                                    'accepted'
+                                )">
+                                ✅ Prijať objednávku
+                            </button>
+                        `
+                        : ""
+                    }
+                    ${
+                        objednavka.status === "accepted"
+                        ? `
+                            <button
+                                onclick="zmenStav(
+                                    ${objednavka.id},
+                                    'preparing'
+                                )">
+                                👨‍🍳 Začať pripravovať
+                            </button>
+                        `
+                        : ""
+                    }
+                    ${
+                        objednavka.status === "preparing"
+                        ? `
+                            <button
+                                onclick="zmenStav(
+                                    ${objednavka.id},
+                                    'ready'
+                                )">
+                                🍽️ Označiť ako hotové
+                            </button>
+                        `
+                        : ""
+                    }
+                    <hr>
+                </div>
+            `;
+        });
+        document.getElementById("objednavky").innerHTML =
+            html;
+    }
+    // 🔄 ZMENA STAVU OBJEDNÁVKY
+    async function zmenStav(
+        orderId,
+        novyStav
+    ) {
+        const { error } =
+            await supabaseClient
+                .from("orders")
+                .update({
+                    status: novyStav
+                })
+                .eq("id", orderId);
+        if (error) {
+            console.error(error);
+            alert(
+                "❌ Nepodarilo sa zmeniť stav."
+            );
+            return;
+        }
+        alert(
+            "✅ Stav objednávky bol zmenený."
+        );
+        nacitajObjednavky();
+    }
+    // 🔔 VYBAVENIE VOLANIA
+    async function vybavVolanie(
+        volanieId
+    ) {
+        const { error } =
+            await supabaseClient
+                .from("waiter_calls")
+                .update({
+                    status: "done"
+                })
+                .eq("id", volanieId);
+        if (error) {
+            console.error(error);
+            alert(
+                "❌ Nepodarilo sa vybaviť volanie."
+            );
+            return;
+        }
+        nacitajVolania();
+    }
+    // 🚀 PRVÉ NAČÍTANIE
+    nacitajObjednavky();
+    nacitajVolania();
+    // 🔄 KONTROLA KAŽDÝCH 2 SEKUNDY
+    setInterval(
+        nacitajObjednavky,
+        2000
+    );
+    setInterval(
+        nacitajVolania,
+        2000
+    );
+</script>
+</body>
+</html>
